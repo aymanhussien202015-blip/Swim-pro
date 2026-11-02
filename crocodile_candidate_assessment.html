@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نظام تقييم المتقدمين - Crocodile Club</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f7;color:#202124;font-family:Tahoma,Arial,sans-serif}
+.app{max-width:1200px;margin:auto;padding:18px}
+.topbar{background:#17151a;color:#fff;border-radius:14px;padding:14px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 5px 20px #0002}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:10px;background:#e1a928;display:grid;place-items:center;font-size:25px;font-weight:bold;color:#17151a}
+.brand h1{font-size:19px;margin:0}.brand small{color:#e6bf58}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:700}
+.btn{background:#e1a928;color:#17151a}.btn2{background:#fff;color:#222}.danger{background:#b52b2b;color:#fff}.success{background:#248a50;color:#fff}
+.tabs{display:flex;gap:7px;margin:15px 0;flex-wrap:wrap}.tab{background:#fff;border:1px solid #ddd}.tab.active{background:#e1a928;border-color:#e1a928}
+.page{display:none}.page.active{display:block}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:15px;box-shadow:0 2px 12px #0000000d}
+.card h2{font-size:17px;margin:0 0 14px;border-right:5px solid #e1a928;padding-right:9px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+label{font-weight:700;font-size:13px}input,select,textarea{width:100%;margin-top:6px;border:1px solid #d4d8dd;border-radius:8px;padding:10px;font:inherit;background:#fff}
+textarea{min-height:90px;resize:vertical}
+.table-wrap{overflow:auto;border:1px solid #ddd;border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:720px}th,td{border:1px solid #ddd;padding:8px;text-align:center}th{background:#18161b;color:#fff}td:first-child,th:first-child{text-align:right}
+.score input{width:22px;height:22px;accent-color:#d49b15}
+.section-title{background:#f5e8b9;padding:9px 12px;font-weight:800;border-right:4px solid #d7a21d;margin-bottom:0}
+.result{display:flex;gap:10px;flex-wrap:wrap}.result label{border:1px solid #ddd;border-radius:8px;padding:10px;background:#fafafa}
+.statbar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#fff;border-radius:12px;padding:14px;box-shadow:0 2px 10px #0001}.stat b{font-size:23px;display:block;margin-top:4px}
+.list{display:grid;gap:8px}.candidate{display:flex;justify-content:space-between;align-items:center;border:1px solid #ddd;padding:12px;border-radius:10px;background:#fff}.candidate small{display:block;color:#777;margin-top:3px}
+.hidden{display:none}.muted{color:#777;font-size:12px}
+@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.statbar{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.actions{display:grid;grid-template-columns:1fr 1fr}.topbar{align-items:flex-start}.candidate{gap:10px;align-items:flex-start;flex-direction:column}}
+@media print{
+ body{background:#fff}.topbar,.tabs,.no-print,#dashboard{display:none!important}.page{display:none!important}.page.printable{display:block!important}.card{box-shadow:none;border:0;padding:5px}.app{padding:0}.print-head{display:block!important}
+}
+.print-head{display:none;text-align:center;border-bottom:2px solid #c99a27;padding:10px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar no-print">
+ <div class="brand"><div class="logo">C</div><div><h1>CROCODILE CLUB</h1><small>نظام تقييم المتقدمين لوظيفة معلم سباحة</small></div></div>
+ <div class="actions">
+  <button class="btn" onclick="newCandidate()">+ متقدم جديد</button>
+  <button class="btn2" onclick="printCurrent()">🖨 طباعة</button>
+  <button class="btn2" onclick="exportData()">⬇ نسخة احتياطية</button>
+  <button class="btn2" onclick="importData()">⬆ استعادة</button>
+  <input id="fileImport" type="file" accept=".json" class="hidden" onchange="loadBackup(event)">
+ </div>
+</header>
+
+<div class="tabs no-print">
+ <button class="tab active" onclick="showPage('dashboard',this)">لوحة المتقدمين</button>
+ <button class="tab" onclick="showPage('form',this)">نموذج التقييم</button>
+</div>
+
+<section id="dashboard" class="page active">
+ <div class="statbar">
+  <div class="stat">إجمالي المتقدمين<b id="countAll">0</b></div>
+  <div class="stat">مقبول للعمل<b id="countAccepted">0</b></div>
+  <div class="stat">مقبول مع تدريب<b id="countTraining">0</b></div>
+  <div class="stat">متوسط التقييم<b id="avgScore">0%</b></div>
+ </div>
+ <div class="card" style="margin-top:15px">
+  <h2>المتقدمون</h2>
+  <div class="grid no-print"><div><label>بحث<input id="search" oninput="renderList()" placeholder="الاسم أو الهاتف"></label></div><div><label>فلترة النتيجة<select id="filter" onchange="renderList()"><option value="">الكل</option><option>مقبول للعمل</option><option>مقبول مع فترة تدريب</option><option>يحتاج إعادة تقييم</option><option>غير مقبول</option></select></label></div></div>
+  <div id="list" class="list" style="margin-top:12px"></div>
+ </div>
+</section>
+
+<section id="form" class="page">
+<div class="print-head"><h1>CROCODILE CLUB</h1><b>استمارة تقييم المتقدم لوظيفة معلم سباحة</b></div>
+<div class="card">
+ <h2>أولاً: بيانات المتقدم</h2>
+ <div class="grid">
+  <label>الاسم الكامل<input id="name" placeholder="اسم المتقدم"></label>
+  <label>رقم الهاتف<input id="phone" placeholder="01xxxxxxxxx"></label>
+  <label>اسم المقيم<input id="evaluator" placeholder="اسم المقيم"></label>
+  <label>السن<input id="age" type="number" min="15"></label>
+  <label>تاريخ التقييم<input id="date" type="date"></label>
+  <label>الخبرة السابقة<input id="experience" placeholder="مثال: 3 سنوات"></label>
+  <label>الوظيفة المتقدم إليها<select id="job"><option>معلم سباحة</option><option>مدرب سباحة</option><option>منقذ</option><option>أخرى</option></select></label>
+ </div>
+</div>
+
+<div class="card">
+ <div class="section-title">ثانياً: التقييم العملي - السباحات الأربعة</div>
+ <div class="table-wrap"><table><thead><tr><th>السباحة</th><th>ضعيف</th><th>مقبول</th><th>جيد</th><th>جيد جداً</th><th>ممتاز</th></tr></thead><tbody id="swimBody"></tbody></table></div>
+</div>
+
+<div class="card">
+ <div class="section-title">ثالثاً: تقييم المقابلة الشخصية</div>
+ <div class="table-wrap"><table><thead><tr><th>السؤال</th><th>جيد</th><th>مقبول</th><th>عدم الإجابة</th></tr></thead><tbody id="interviewBody"></tbody></table></div>
+</div>
+
+<div class="card">
+ <div class="section-title">رابعاً: المهارات والسلوك المهني</div>
+ <div class="table-wrap"><table><thead><tr><th>المعيار</th><th>جيد</th><th>مقبول</th><th>يحتاج تطوير</th></tr></thead><tbody id="skillBody"></tbody></table></div>
+</div>
+
+<div class="card">
+ <div class="section-title">خامساً: القرار النهائي</div>
+ <div class="result">
+  <label><input type="radio" name="decision" value="مقبول للعمل"> مقبول للعمل</label>
+  <label><input type="radio" name="decision" value="مقبول مع فترة تدريب"> مقبول مع فترة تدريب</label>
+  <label><input type="radio" name="decision" value="يحتاج إعادة تقييم"> يحتاج إعادة تقييم</label>
+  <label><input type="radio" name="decision" value="غير مقبول"> غير مقبول</label>
+ </div>
+ <label style="display:block;margin-top:15px">ملاحظات المقيم<textarea id="notes" placeholder="اكتب الملاحظات والتوصيات..."></textarea></label>
+ <div class="no-print actions" style="margin-top:14px">
+  <button class="success" onclick="saveCandidate()">💾 حفظ التقييم</button>
+  <button class="btn2" onclick="printCurrent()">🖨 طباعة الاستمارة</button>
+  <button class="danger" id="deleteBtn" onclick="deleteCandidate()">حذف التقييم</button>
+ </div>
+</div>
+</section>
+</div>
+
+<script>
+const KEY='crocodile_assessments_v1';
+let data=JSON.parse(localStorage.getItem(KEY)||'[]'), currentId=null;
+const swims=['السباحة الحرة','سباحة الظهر','سباحة الصدر','سباحة الفراشة'];
+const questions=[
+'ما الخطوات الأساسية لعمل طفل مبتدئ السباحة؟',
+'كيف تتعامل مع طفل يخاف من الماء أو يرفض النزول إلى حمام السباحة؟',
+'ما أهم قواعد الأمن والسلامة التي تطبقها أثناء التدريب؟',
+'كيف تتصرف عند ملاحظة حالة طارئة أو متدرب يواجه صعوبة في التنفس؟',
+'كيف تتعامل مع طفل لا يستمع للتعليمات أو يتسبب في فوضى؟',
+'كيف تكتشف الأخطاء الفنية في أداء السباح وتصححها؟',
+'كيف تنظم مجموعة تضم سباحين بمستويات مختلفة؟',
+'كيف تضع هدفاً تدريبياً مناسباً وتتابع تطور مستوى السباح؟',
+'كيف تتواصل مع ولي الأمر بشأن مستوى الطفل وملاحظات التدريب؟',
+'ما الذي تفعله قبل بداية الحصة وبعد انتهائها لضمان سلامة المتدربين؟'
+];
+const skills=['الالتزام بالمواعيد والمظهر المهني','الثقة بالنفس والتواصل مع الأطفال','شرح المهارات بطريقة واضحة وسهلة','إدارة المجموعة والانضباط','الالتزام بإجراءات السلامة'];
+function buildTables(){
+ document.getElementById('swimBody').innerHTML=swims.map((x,i)=>`<tr><td>${x}</td>${['ضعيف','مقبول','جيد','جيد جداً','ممتاز'].map(v=>`<td class="score"><input type="radio" name="swim${i}" value="${v}"></td>`).join('')}</tr>`).join('');
+ document.getElementById('interviewBody').innerHTML=questions.map((x,i)=>`<tr><td>${i+1}. ${x}</td>${['جيد','مقبول','عدم الإجابة'].map(v=>`<td class="score"><input type="radio" name="q${i}" value="${v}"></td>`).join('')}</tr>`).join('');
+ document.getElementById('skillBody').innerHTML=skills.map((x,i)=>`<tr><td>${x}</td>${['جيد','مقبول','يحتاج تطوير'].map(v=>`<td class="score"><input type="radio" name="s${i}" value="${v}"></td>`).join('')}</tr>`).join('');
+}
+function val(id){return document.getElementById(id).value}
+function radio(name){return document.querySelector(`input[name="${name}"]:checked`)?.value||''}
+function setRadio(name,value){document.querySelectorAll(`input[name="${name}"]`).forEach(x=>x.checked=x.value===value)}
+function collect(){
+ return {id:currentId||Date.now().toString(),name:val('name').trim(),phone:val('phone').trim(),evaluator:val('evaluator').trim(),age:val('age'),date:val('date'),experience:val('experience'),job:val('job'),swims:swims.map((_,i)=>radio('swim'+i)),questions:questions.map((_,i)=>radio('q'+i)),skills:skills.map((_,i)=>radio('s'+i)),decision:radio('decision'),notes:val('notes'),updated:new Date().toISOString()};
+}
+function score(c){
+ let total=0,max=0; const a={ضعيف:1,مقبول:2,جيد:3,'جيد جداً':4,ممتاز:5,'عدم الإجابة':0,'يحتاج تطوير':1};
+ c.swims.forEach(x=>{if(x){total+=a[x]||0;max+=5}});
+ c.questions.forEach(x=>{if(x){total+=a[x]||0;max+=3}});
+ c.skills.forEach(x=>{if(x){total+=a[x]||0;max+=3}});
+ return max?Math.round(total/max*100):0;
+}
+function saveCandidate(){
+ const c=collect();
+ if(!c.name){alert('يرجى إدخال اسم المتقدم');return}
+ const idx=data.findIndex(x=>x.id===c.id); if(idx>=0)data[idx]=c;else data.unshift(c);
+ localStorage.setItem(KEY,JSON.stringify(data));currentId=c.id;updateStats();renderList();alert('تم حفظ التقييم بنجاح');
+}
+function newCandidate(){
+ currentId=null; document.querySelectorAll('#form input,#form textarea').forEach(x=>{if(x.type==='radio')x.checked=false;else if(x.id!=='date')x.value=''});
+ document.getElementById('date').value=new Date().toISOString().slice(0,10);
+ document.getElementById('job').value='معلم سباحة';
+ showPage('form',document.querySelectorAll('.tab')[1]);
+}
+function editCandidate(id){
+ const c=data.find(x=>x.id===id);if(!c)return;currentId=id;
+ ['name','phone','evaluator','age','date','experience','job','notes'].forEach(k=>document.getElementById(k).value=c[k]||'');
+ c.swims.forEach((v,i)=>setRadio('swim'+i,v));c.questions.forEach((v,i)=>setRadio('q'+i,v));c.skills.forEach((v,i)=>setRadio('s'+i,v));setRadio('decision',c.decision);
+ showPage('form',document.querySelectorAll('.tab')[1]);
+}
+function deleteCandidate(){
+ if(!currentId){alert('لا يوجد تقييم محفوظ لحذفه');return}
+ if(confirm('هل تريد حذف هذا التقييم نهائياً؟')){data=data.filter(x=>x.id!==currentId);localStorage.setItem(KEY,JSON.stringify(data));newCandidate();updateStats();renderList()}
+}
+function renderList(){
+ const q=(document.getElementById('search')?.value||'').toLowerCase(), f=document.getElementById('filter')?.value||'';
+ let arr=data.filter(c=>(c.name+' '+c.phone).toLowerCase().includes(q)&&(!f||c.decision===f));
+ document.getElementById('list').innerHTML=arr.length?arr.map(c=>`<div class="candidate"><div><b>${c.name||'بدون اسم'}</b><small>${c.job||''} • ${c.phone||'بدون هاتف'} • ${score(c)}%</small></div><div class="actions"><button class="btn2" onclick="editCandidate('${c.id}')">تعديل</button><button class="danger" onclick="deleteById('${c.id}')">حذف</button></div></div>`).join(''):'<div class="muted">لا توجد تقييمات محفوظة.</div>';
+}
+function deleteById(id){if(confirm('حذف هذا التقييم؟')){data=data.filter(x=>x.id!==id);localStorage.setItem(KEY,JSON.stringify(data));updateStats();renderList()}}
+function updateStats(){
+ document.getElementById('countAll').textContent=data.length;
+ document.getElementById('countAccepted').textContent=data.filter(x=>x.decision==='مقبول للعمل').length;
+ document.getElementById('countTraining').textContent=data.filter(x=>x.decision==='مقبول مع فترة تدريب').length;
+ document.getElementById('avgScore').textContent=(data.length?Math.round(data.reduce((a,c)=>a+score(c),0)/data.length):0)+'%';
+}
+function showPage(id,btn){
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
+}
+function printCurrent(){document.querySelectorAll('.page').forEach(x=>x.classList.remove('printable'));document.getElementById('form').classList.add('printable');window.print()}
+function exportData(){const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='crocodile_assessments_backup.json';a.click();URL.revokeObjectURL(a.href)}
+function importData(){document.getElementById('fileImport').click()}
+function loadBackup(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!Array.isArray(x))throw 0;data=x;localStorage.setItem(KEY,JSON.stringify(data));updateStats();renderList();alert('تمت استعادة النسخة الاحتياطية')}catch{alert('الملف غير صالح')}};r.readAsText(f)}
+buildTables();newCandidate();updateStats();renderList();
+</script>
+</body>
+</html>
